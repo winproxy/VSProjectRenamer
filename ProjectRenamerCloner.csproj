@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <!-- GLOBAL TOOL -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>project-renamer</ToolCommandName>
+    <PackageOutputPath>./nupkg</PackageOutputPath>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+    <!-- NUGET PACKAGE METADATA -->
+    <PackageId>ProjectRenamerCloner</PackageId>
+    <Version>2.1.0</Version>
+    <Authors>winproxy</Authors>
+    <Company>winproxy</Company>
+    <Product>Project Renamer Cloner</Product>
+    <Title>Project Renamer Cloner</Title>
+    <Description>A .NET global tool that clones and renames entire projects in one step. Performs case-aware find-and-replace across file contents, file names, and directory names — supporting PascalCase, camelCase, kebab-case, snake_case, dot.case and more. Handles .sln/.slnx GUID regeneration, UserSecretsId rotation, launchSettings port randomization, and automatic dotnet/npm/yarn/pnpm restore. Built for ABP.io, ASP.NET Core, Angular, React Native, and any multi-project .NET solution.</Description>
+    <PackageTags>dotnet-tool;rename;clone;project;template;abp;aspnetcore;angular;react-native;refactor;scaffold</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://winproxy.visualstudio.com/ProjectRenamerCloner</PackageProjectUrl>
+    <RepositoryUrl>https://winproxy.visualstudio.com/ProjectRenamerCloner/_git/ProjectRenamerCloner</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReleaseNotes>v2.1.0 — Added backup/restore, 8-step pipeline with port propagation to all config files, IIS Express support, consistent port mapping, USAGE.md and CHANGELOG.md.</PackageReleaseNotes>
+    <Copyright>Copyright © 2026 winproxy</Copyright>
+    <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <!-- EXE PUBLISH PROFILE -->
+  <PropertyGroup Condition="'$(PublishProfile)'=='singlefile'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <PublishTrimmed>false</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" Condition="Exists('icon.png')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <Folder Include="nupkg\" />
+  </ItemGroup>
+
+</Project>
