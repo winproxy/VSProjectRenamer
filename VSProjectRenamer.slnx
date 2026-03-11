@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/VSProjectRenamer/VSProjectRenamer.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/VSProjectRenamer.Tests/VSProjectRenamer.Tests.csproj" />
+  </Folder>
+</Solution>
