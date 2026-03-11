@@ -34,6 +34,10 @@ var regenerateGuidsOption = new Option<bool>(
     aliases: ["--regenerate-guids"],
     description: "Replace all GUIDs with newly generated ones.");
 
+var cleanOption = new Option<bool>(
+    aliases: ["--clean"],
+    description: "Delete build-output directories (bin, obj) and front-end caches (node_modules, .angular, …) before renaming.");
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 'rename' sub-command  (in-place rename)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,6 +65,7 @@ var renameCommand = new Command("rename", "Rename a project in-place.")
     verboseOption,
     randomizePortsOption,
     regenerateGuidsOption,
+    cleanOption,
 };
 
 renameCommand.SetHandler((InvocationContext ctx) =>
@@ -73,6 +78,7 @@ renameCommand.SetHandler((InvocationContext ctx) =>
     var verbose        = ctx.ParseResult.GetValueForOption(verboseOption);
     var randomizePorts = ctx.ParseResult.GetValueForOption(randomizePortsOption);
     var regenerateGuids= ctx.ParseResult.GetValueForOption(regenerateGuidsOption);
+    var clean          = ctx.ParseResult.GetValueForOption(cleanOption);
 
     var opts = new RenameOptions
     {
@@ -84,6 +90,7 @@ renameCommand.SetHandler((InvocationContext ctx) =>
         Verbose         = verbose,
         RandomizePorts  = randomizePorts,
         RegenerateGuids = regenerateGuids,
+        Clean           = clean,
     };
     new ProjectRenamer(opts).Run();
 });
@@ -120,6 +127,7 @@ var cloneCommand = new Command("clone", "Clone a project to a new directory and 
     verboseOption,
     randomizePortsOption,
     regenerateGuidsOption,
+    cleanOption,
 };
 
 cloneCommand.SetHandler((InvocationContext ctx) =>
@@ -133,6 +141,7 @@ cloneCommand.SetHandler((InvocationContext ctx) =>
     var verbose        = ctx.ParseResult.GetValueForOption(verboseOption);
     var randomizePorts = ctx.ParseResult.GetValueForOption(randomizePortsOption);
     var regenerateGuids= ctx.ParseResult.GetValueForOption(regenerateGuidsOption);
+    var clean          = ctx.ParseResult.GetValueForOption(cleanOption);
 
     if (!dryRun && target!.Exists)
     {
@@ -152,6 +161,7 @@ cloneCommand.SetHandler((InvocationContext ctx) =>
         Verbose         = verbose,
         RandomizePorts  = randomizePorts,
         RegenerateGuids = regenerateGuids,
+        Clean           = clean,
     };
     new ProjectRenamer(opts).Run();
 });

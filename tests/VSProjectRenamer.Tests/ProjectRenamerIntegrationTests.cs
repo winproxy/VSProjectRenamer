@@ -185,4 +185,132 @@ public class ProjectRenamerIntegrationTests : IDisposable
         var content = File.ReadAllText(Path.Combine(projectDir, "appsettings.json"));
         Assert.DoesNotContain("5000", content);
     }
+
+    // -----------------------------------------------------------------------
+    // Clean step
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void Rename_Clean_DeletesBuildOutputsBeforeRenaming()
+    {
+        var projectDir = Path.Combine(_tempDir, "CleanProject");
+        Directory.CreateDirectory(projectDir);
+
+        // Create a source file and a bin directory that should be cleaned
+        File.WriteAllText(Path.Combine(projectDir, "CleanProject.cs"), "namespace CleanProject {}");
+        var binDir = Path.Combine(projectDir, "bin", "Debug");
+        Directory.CreateDirectory(binDir);
+        File.WriteAllText(Path.Combine(binDir, "CleanProject.dll"), "binary");
+
+        var opts = new RenameOptions
+        {
+            SourceDirectory = projectDir,
+            OldName         = "CleanProject",
+            NewName         = "NewProject",
+            Clean           = true,
+            NoRestore       = true,
+        };
+
+        new ProjectRenamer(opts).Run();
+
+        // bin directory must be gone
+        Assert.False(Directory.Exists(Path.Combine(projectDir, "bin")));
+        // Source file must have been renamed
+        Assert.True(File.Exists(Path.Combine(projectDir, "NewProject.cs")));
+    }
+
+    // -----------------------------------------------------------------------
+    // Directory exclusion (bin/obj/node_modules should not be processed)
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void Rename_IgnoresBinAndObjDirectories()
+    {
+        var projectDir = Path.Combine(_tempDir, "ExcludeProject");
+        Directory.CreateDirectory(projectDir);
+
+        // Source file in project root – must be updated
+        File.WriteAllText(Path.Combine(projectDir, "ExcludeProject.cs"), "namespace ExcludeProject {}");
+
+        // Compiled file inside bin – must NOT be renamed or processed
+        var binDir = Path.Combine(projectDir, "bin");
+        Directory.CreateDirectory(binDir);
+        File.WriteAllText(Path.Combine(binDir, "ExcludeProject.xml"), "<assembly>ExcludeProject</assembly>");
+
+        var opts = new RenameOptions
+        {
+            SourceDirectory = projectDir,
+            OldName         = "ExcludeProject",
+            NewName         = "RenamedProject",
+            NoRestore       = true,
+        };
+
+        new ProjectRenamer(opts).Run();
+
+        // Source file was renamed
+        Assert.True(File.Exists(Path.Combine(projectDir, "RenamedProject.cs")));
+        // Bin file still uses the original name (was skipped)
+        Assert.True(File.Exists(Path.Combine(binDir, "ExcludeProject.xml")),
+            "Files inside bin/ should not be renamed.");
+        var binContent = File.ReadAllText(Path.Combine(binDir, "ExcludeProject.xml"));
+        Assert.Equal("<assembly>ExcludeProject</assembly>", binContent);
+    }
+
+    // -----------------------------------------------------------------------
+    // SLN / CSPROJ GUID regeneration
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void Rename_RegenerateGuids_SlnInstanceGuidReplaced_TypeGuidPreserved()
+    {
+        var projectDir = Path.Combine(_tempDir, "SlnGuidProject");
+        Directory.CreateDirectory(projectDir);
+
+        const string typeGuid     = "FAE04EC0-301F-11D3-BF4B-00C04F79EFBC";
+        const string instanceGuid = "12345678-1234-1234-1234-123456789012";
+        var slnContent = $"Project(\"{{{typeGuid}}}\") = \"SlnGuidProject\", \"SlnGuidProject.csproj\", \"{{{instanceGuid}}}\"";
+        File.WriteAllText(Path.Combine(projectDir, "SlnGuidProject.sln"), slnContent);
+
+        var opts = new RenameOptions
+        {
+            SourceDirectory = projectDir,
+            OldName         = "SlnGuidProject",
+            NewName         = "SlnGuidProject",
+            RegenerateGuids = true,
+            NoRestore       = true,
+        };
+
+        new ProjectRenamer(opts).Run();
+
+        var result = File.ReadAllText(Path.Combine(projectDir, "SlnGuidProject.sln"));
+        Assert.DoesNotContain(instanceGuid, result, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(typeGuid, result, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Rename_RegenerateGuids_RotatesUserSecretsId()
+    {
+        var projectDir = Path.Combine(_tempDir, "SecretsProject");
+        Directory.CreateDirectory(projectDir);
+
+        const string secretsId = "my-original-secrets-id-12345";
+        File.WriteAllText(
+            Path.Combine(projectDir, "SecretsProject.csproj"),
+            $"<Project><PropertyGroup><UserSecretsId>{secretsId}</UserSecretsId></PropertyGroup></Project>");
+
+        var opts = new RenameOptions
+        {
+            SourceDirectory = projectDir,
+            OldName         = "SecretsProject",
+            NewName         = "SecretsProject",
+            RegenerateGuids = true,
+            NoRestore       = true,
+        };
+
+        new ProjectRenamer(opts).Run();
+
+        var content = File.ReadAllText(Path.Combine(projectDir, "SecretsProject.csproj"));
+        Assert.DoesNotContain(secretsId, content, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("<UserSecretsId>", content);
+    }
 }

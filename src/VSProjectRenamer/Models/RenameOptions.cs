@@ -32,4 +32,11 @@ public sealed class RenameOptions
 
     /// <summary>Replace all GUIDs with newly generated ones.</summary>
     public bool RegenerateGuids { get; init; }
+
+    /// <summary>
+    /// When <c>true</c>, deletes build-output directories (<c>bin</c>, <c>obj</c>),
+    /// front-end caches (<c>node_modules</c>, <c>.angular</c>, <c>.next</c>, …), and
+    /// lock files (<c>package-lock.json</c>, <c>yarn.lock</c>, …) before renaming.
+    /// </summary>
+    public bool Clean { get; init; }
 }

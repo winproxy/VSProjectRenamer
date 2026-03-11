@@ -67,22 +67,32 @@ public sealed class ProjectRenamer
             _log($"Renaming in-place: {workDir}");
         }
 
+        // Step 1 – clean build outputs and lock files (optional)
+        if (_options.Clean)
+        {
+            _log("[1] Cleaning build outputs and lock files...");
+            if (!_options.DryRun)
+                ProjectCleaner.Clean(workDir, CleanExcludedDirectories);
+            else
+                _log("[DRY-RUN] Would delete bin, obj, node_modules, lock files, etc.");
+        }
+
         // Shared GUID map so the same old GUID becomes the same new GUID across files
         var guidMap = _options.RegenerateGuids ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) : null;
         var portMap = _options.RandomizePorts  ? new Dictionary<int, int>() : null;
 
-        // Step 1 – process file contents
+        // Step 2 – process file contents
         ProcessFileContents(workDir, plan, guidMap, portMap);
 
-        // Step 2 – rename files
+        // Step 3 – rename files
         RenameFiles(workDir, plan);
 
-        // Step 3 – rename directories (bottom-up, so children are renamed before parents)
+        // Step 4 – rename directories (bottom-up, so children are renamed before parents)
         RenameDirectories(workDir, plan);
 
         _log("Done.");
 
-        // Step 4 – optional dotnet restore
+        // Step 5 – optional restore
         if (!_options.NoRestore && !_options.DryRun)
             TryRestore(workDir);
     }
@@ -99,6 +109,13 @@ public sealed class ProjectRenamer
     {
         foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
         {
+            // Skip files inside ignored directories (e.g. bin, obj, node_modules, .git)
+            if (IsInsideIgnoredDirectory(directory, file))
+            {
+                _verbose($"  skip (ignored dir)  {RelativePath(directory, file)}");
+                continue;
+            }
+
             if (!FileTypeFilter.ShouldProcessContents(file))
             {
                 _verbose($"  skip (binary)  {RelativePath(directory, file)}");
@@ -111,7 +128,7 @@ public sealed class ProjectRenamer
                 var updated  = plan.Apply(original);
 
                 if (guidMap is not null)
-                    updated = GuidReGenerator.RegenerateGuids(updated, guidMap);
+                    updated = ApplyGuidRegeneration(file, updated, guidMap);
 
                 if (portMap is not null)
                     updated = PortRandomizer.RandomizePorts(updated, portMap);
@@ -133,6 +150,35 @@ public sealed class ProjectRenamer
         }
     }
 
+    /// <summary>
+    /// Applies GUID regeneration to <paramref name="content"/> using file-type-aware logic:
+    /// <list type="bullet">
+    ///   <item><c>.sln</c> — only instance GUIDs are replaced; project-type GUIDs are preserved.</item>
+    ///   <item><c>.csproj</c> / <c>.vbproj</c> / <c>.fsproj</c> — <c>&lt;ProjectGuid&gt;</c>
+    ///         is regenerated and <c>&lt;UserSecretsId&gt;</c> is rotated.</item>
+    ///   <item>All other files — every GUID is replaced generically.</item>
+    /// </list>
+    /// </summary>
+    private static string ApplyGuidRegeneration(string filePath, string content,
+                                                Dictionary<string, string> guidMap)
+    {
+        var ext = Path.GetExtension(filePath);
+
+        if (ext.Equals(".sln", StringComparison.OrdinalIgnoreCase))
+            return GuidReGenerator.RegenerateSlnInstanceGuids(content, guidMap);
+
+        if (ext.Equals(".csproj", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".vbproj", StringComparison.OrdinalIgnoreCase) ||
+            ext.Equals(".fsproj", StringComparison.OrdinalIgnoreCase))
+        {
+            var updated = GuidReGenerator.RegenerateProjectGuid(content, guidMap);
+            updated     = GuidReGenerator.RotateUserSecretsId(updated);
+            return updated;
+        }
+
+        return GuidReGenerator.RegenerateGuids(content, guidMap);
+    }
+
     // -----------------------------------------------------------------------
     // Rename files
     // -----------------------------------------------------------------------
@@ -141,6 +187,10 @@ public sealed class ProjectRenamer
     {
         foreach (var file in Directory.EnumerateFiles(directory, "*", SearchOption.AllDirectories))
         {
+            // Skip files inside ignored directories
+            if (IsInsideIgnoredDirectory(directory, file))
+                continue;
+
             var oldName = Path.GetFileName(file);
             var newName = plan.Apply(oldName);
             if (newName == oldName) continue;
@@ -161,12 +211,16 @@ public sealed class ProjectRenamer
     {
         // Enumerate all sub-directories, sort deepest-first so children are renamed before parents.
         var dirs = Directory.EnumerateDirectories(rootDirectory, "*", SearchOption.AllDirectories)
+                            .Where(d => !IsInsideIgnoredDirectory(rootDirectory, d))
                             .OrderByDescending(d => d.Length)
                             .ToList();
 
         foreach (var dir in dirs)
         {
             var oldName = Path.GetFileName(dir);
+            // Never rename ignored directories themselves
+            if (IsIgnoredDirectory(oldName)) continue;
+
             var newName = plan.Apply(oldName);
             if (newName == oldName) continue;
 
@@ -212,14 +266,46 @@ public sealed class ProjectRenamer
             ".angular", ".next", ".nuxt",
             "dist", "build", "out",
             "packages",
+            "__renamer_backup__",
+        };
+
+    // Directories that the clean step must never remove (version control, backup).
+    private static readonly HashSet<string> CleanExcludedDirectories =
+        new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".git",
+            "__renamer_backup__",
         };
 
     private static bool IsIgnoredDirectory(string dirName) =>
         IgnoredDirectories.Contains(dirName);
 
+    /// <summary>
+    /// Returns <c>true</c> when <paramref name="fullPath"/> is located inside one of the
+    /// <see cref="IgnoredDirectories"/> relative to <paramref name="rootDirectory"/>.
+    /// </summary>
+    private static bool IsInsideIgnoredDirectory(string rootDirectory, string fullPath)
+    {
+        // Walk the path segments between root and the file/dir to check for ignored ancestors.
+        var relative = Path.GetRelativePath(rootDirectory, fullPath);
+        // Split on both separators for platform safety
+        var parts = relative.Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
+                                   StringSplitOptions.RemoveEmptyEntries);
+        // Check every segment except the last (the file/dir name itself)
+        for (var i = 0; i < parts.Length - 1; i++)
+        {
+            if (IgnoredDirectories.Contains(parts[i]))
+                return true;
+        }
+        return false;
+    }
+
     // -----------------------------------------------------------------------
-    // dotnet restore
+    // dotnet restore + frontend package managers
     // -----------------------------------------------------------------------
+
+    private const int DotnetRestoreTimeoutMs        = 120_000; // 2 minutes
+    private const int PackageManagerTimeoutMs       = 300_000; // 5 minutes
 
     private void TryRestore(string directory)
     {
@@ -243,13 +329,44 @@ public sealed class ProjectRenamer
                     UseShellExecute        = false,
                 };
                 using var proc = System.Diagnostics.Process.Start(psi)!;
-                proc.WaitForExit(120_000);
+                proc.WaitForExit(DotnetRestoreTimeoutMs);
                 if (proc.ExitCode != 0)
                     _log($"  [WARN] dotnet restore exited with code {proc.ExitCode}");
             }
             catch (Exception ex)
             {
                 _log($"  [WARN] dotnet restore failed: {ex.Message}");
+            }
+        }
+
+        // Frontend package managers: detect lock file to choose the right tool
+        foreach (var pkgJson in Directory.EnumerateFiles(directory, "package.json", SearchOption.AllDirectories))
+        {
+            if (IsInsideIgnoredDirectory(directory, pkgJson)) continue;
+
+            var pkgDir = Path.GetDirectoryName(pkgJson)!;
+            var pm = File.Exists(Path.Combine(pkgDir, "bun.lockb"))        ? "bun"  :
+                     File.Exists(Path.Combine(pkgDir, "pnpm-lock.yaml"))   ? "pnpm" :
+                     File.Exists(Path.Combine(pkgDir, "yarn.lock"))        ? "yarn" : "npm";
+
+            _log($"{pm} install → {RelativePath(directory, pkgDir)}");
+            try
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo(pm, "install")
+                {
+                    WorkingDirectory       = pkgDir,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError  = true,
+                    UseShellExecute        = false,
+                };
+                using var proc = System.Diagnostics.Process.Start(psi)!;
+                proc.WaitForExit(PackageManagerTimeoutMs);
+                if (proc.ExitCode != 0)
+                    _log($"  [WARN] {pm} install exited with code {proc.ExitCode}");
+            }
+            catch (Exception ex)
+            {
+                _log($"  [WARN] {pm} install failed: {ex.Message}");
             }
         }
     }
