@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks>net10.0;net9.0;net8.0;net7.0;net6.0;net48;net472;net462</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
-    <!-- GLOBAL TOOL -->
+    <!-- GLOBAL TOOL (not supported for .NET Framework targets) -->
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>project-renamer</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
@@ -14,21 +15,26 @@
 
     <!-- NUGET PACKAGE METADATA -->
     <PackageId>ProjectRenamerCloner</PackageId>
-    <Version>2.1.0</Version>
+    <Version>3.0.0</Version>
     <Authors>winproxy</Authors>
     <Company>winproxy</Company>
     <Product>Project Renamer Cloner</Product>
     <Title>Project Renamer Cloner</Title>
-    <Description>A .NET global tool that clones and renames entire projects in one step. Performs case-aware find-and-replace across file contents, file names, and directory names — supporting PascalCase, camelCase, kebab-case, snake_case, dot.case and more. Handles .sln/.slnx GUID regeneration, UserSecretsId rotation, launchSettings port randomization, and automatic dotnet/npm/yarn/pnpm restore. Built for ABP.io, ASP.NET Core, Angular, React Native, and any multi-project .NET solution.</Description>
+    <Description>A .NET global tool and standalone executable that clones and renames entire projects in one step. Supports .NET 10 through .NET Framework 4.6.2. Performs case-aware find-and-replace across file contents, file names, and directory names — supporting PascalCase, camelCase, kebab-case, snake_case, dot.case and more. Handles .sln/.slnx GUID regeneration, UserSecretsId rotation, launchSettings port randomization, and automatic dotnet/npm/yarn/pnpm restore. Built for ABP.io, ASP.NET Core, Angular, React Native, and any multi-project .NET solution.</Description>
     <PackageTags>dotnet-tool;rename;clone;project;template;abp;aspnetcore;angular;react-native;refactor;scaffold</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://winproxy.visualstudio.com/ProjectRenamerCloner</PackageProjectUrl>
-    <RepositoryUrl>https://winproxy.visualstudio.com/ProjectRenamerCloner/_git/ProjectRenamerCloner</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/winproxy/VSProjectRenamer</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/winproxy/VSProjectRenamer.git</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageReleaseNotes>v2.1.0 — Added backup/restore, 8-step pipeline with port propagation to all config files, IIS Express support, consistent port mapping, USAGE.md and CHANGELOG.md.</PackageReleaseNotes>
+    <PackageReleaseNotes>v3.0.0 — Multi-target framework support: .NET 10, 9, 8, 7, 6 and .NET Framework 4.8, 4.7.2, 4.6.2. Global tool for .NET 6+, standalone EXE for .NET Framework. All APIs polyfilled for full backward compatibility.</PackageReleaseNotes>
     <Copyright>Copyright © 2026 winproxy</Copyright>
     <PackageIcon>icon.png</PackageIcon>
+  </PropertyGroup>
+
+  <!-- Disable tool packaging for .NET Framework targets -->
+  <PropertyGroup Condition="$(TargetFramework.StartsWith('net4'))">
+    <PackAsTool>false</PackAsTool>
   </PropertyGroup>
 
   <!-- EXE PUBLISH PROFILE -->
@@ -39,6 +45,16 @@
     <PublishTrimmed>false</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
+
+  <!-- .NET Framework reference assemblies (enables build on machines without full framework SDK) -->
+  <ItemGroup Condition="$(TargetFramework.StartsWith('net4'))">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="All" />
+  </ItemGroup>
+
+  <!-- System.ValueTuple for .NET Framework 4.6.2 -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />

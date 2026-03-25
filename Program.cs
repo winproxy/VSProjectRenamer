@@ -1,4 +1,10 @@
-﻿using System.Text;
+﻿#if NETFRAMEWORK
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+#endif
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 
@@ -32,7 +38,7 @@ if (Directory.Exists(backupDir))
     {
         Console.Write("  Restoring...");
 
-        var selfPath = Environment.ProcessPath;
+        var selfPath = GetProcessPath();
         foreach (var d in Directory.GetDirectories(root))
         {
             var n = Path.GetFileName(d);
@@ -122,10 +128,10 @@ List<string> SplitPascalCase(string name)
 }
 
 string Capitalize(string s) =>
-    s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..].ToLowerInvariant();
+    s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1).ToLowerInvariant();
 
 string Decapitalize(string s) =>
-    s.Length == 0 ? s : char.ToLowerInvariant(s[0]) + s[1..];
+    s.Length == 0 ? s : char.ToLowerInvariant(s[0]) + s.Substring(1);
 
 // --- Build replacement map with all case variants ---
 var oldWords = SplitPascalCase(oldName);
@@ -219,6 +225,39 @@ if (wantBackup.Equals("Y", StringComparison.OrdinalIgnoreCase))
 int modifiedCount = 0, fileRenamedCount = 0, dirRenamedCount = 0, errorCount = 0;
 var sw = Stopwatch.StartNew();
 
+string? GetProcessPath()
+{
+#if NET6_0_OR_GREATER
+    return Environment.ProcessPath;
+#else
+    try { return Process.GetCurrentProcess().MainModule?.FileName; }
+    catch { return null; }
+#endif
+}
+
+string RelativePath(string basePath, string fullPath)
+{
+#if NETFRAMEWORK
+    if (!basePath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+        basePath += Path.DirectorySeparatorChar;
+    var baseUri = new Uri(basePath);
+    var fullUri = new Uri(fullPath);
+    return Uri.UnescapeDataString(baseUri.MakeRelativeUri(fullUri).ToString())
+              .Replace('/', Path.DirectorySeparatorChar);
+#else
+    return Path.GetRelativePath(basePath, fullPath);
+#endif
+}
+
+string ReplaceOrdinalIgnoreCase(string input, string oldValue, string newValue)
+{
+#if NETFRAMEWORK
+    return Regex.Replace(input, Regex.Escape(oldValue), newValue.Replace("$", "$$"), RegexOptions.IgnoreCase);
+#else
+    return input.Replace(oldValue, newValue, StringComparison.OrdinalIgnoreCase);
+#endif
+}
+
 string ApplyReplacements(string input)
 {
     foreach (var (from, to) in sortedReplacements)
@@ -273,14 +312,14 @@ void WriteProgress(string label, int current, int total, string? item = null)
         if (space > 10)
         {
             if (item.Length > space)
-                item = "…" + item[^(space - 1)..];
+                item = "…" + item.Substring(item.Length - (space - 1));
             text += $" {item}";
         }
     }
 
     text = text.PadRight(width - 1);
     if (text.Length > width - 1)
-        text = text[..(width - 1)];
+        text = text.Substring(0, width - 1);
 
     Console.Write($"\r{text}");
 }
@@ -371,7 +410,7 @@ bool IsTextFile(string path) =>
     knownFileNames.Contains(Path.GetFileName(path)) ||
     Path.GetFileName(path).StartsWith(".env.", StringComparison.OrdinalIgnoreCase);
 
-var selfExe = Environment.ProcessPath;
+var selfExe = GetProcessPath();
 
 var files = Directory
     .EnumerateFiles(root, "*", SearchOption.AllDirectories)
@@ -391,7 +430,7 @@ var textFiles = files
 for (var i = 0; i < textFiles.Count; i++)
 {
     var file = textFiles[i];
-    WriteProgress("Content", i + 1, textFiles.Count, Path.GetRelativePath(root, file));
+    WriteProgress("Content", i + 1, textFiles.Count, RelativePath(root, file));
 
     try
     {
@@ -418,7 +457,7 @@ var sortedFiles = files.OrderByDescending(f => f.Length).ToList();
 for (var i = 0; i < sortedFiles.Count; i++)
 {
     var file = sortedFiles[i];
-    WriteProgress("Files", i + 1, sortedFiles.Count, Path.GetRelativePath(root, file));
+    WriteProgress("Files", i + 1, sortedFiles.Count, RelativePath(root, file));
 
     if (!File.Exists(file)) continue;
 
@@ -456,7 +495,7 @@ var directories = Directory
 for (var i = 0; i < directories.Count; i++)
 {
     var dir = directories[i];
-    WriteProgress("Dirs", i + 1, directories.Count, Path.GetRelativePath(root, dir));
+    WriteProgress("Dirs", i + 1, directories.Count, RelativePath(root, dir));
 
     if (!Directory.Exists(dir)) continue;
 
@@ -640,7 +679,7 @@ if (portMap.Count > 0)
     for (var i = 0; i < configFiles.Count; i++)
     {
         var file = configFiles[i];
-        WriteProgress("Ports", i + 1, configFiles.Count, Path.GetRelativePath(root, file));
+        WriteProgress("Ports", i + 1, configFiles.Count, RelativePath(root, file));
 
         try
         {
@@ -720,7 +759,7 @@ foreach (var sln in Directory.EnumerateFiles(root, "*.sln", SearchOption.AllDire
     }
 
     foreach (var (oldGuid, newGuid) in guidMap)
-        text = text.Replace(oldGuid, newGuid, StringComparison.OrdinalIgnoreCase);
+        text = ReplaceOrdinalIgnoreCase(text, oldGuid, newGuid);
 
     File.WriteAllText(sln, text, new UTF8Encoding(false));
 }
@@ -812,7 +851,7 @@ foreach (var pkgJson in Directory.EnumerateFiles(root, "package.json", SearchOpt
              File.Exists(Path.Combine(pkgDir, "pnpm-lock.yaml")) ? "pnpm" :
              File.Exists(Path.Combine(pkgDir, "yarn.lock"))      ? "yarn" : "npm";
 
-    Console.WriteLine($"    {pm} install → {Path.GetRelativePath(root, pkgDir)}");
+    Console.WriteLine($"    {pm} install → {RelativePath(root, pkgDir)}");
     try
     {
         var p = new Process();
@@ -880,3 +919,14 @@ Console.ForegroundColor = ConsoleColor.DarkGray;
 Console.WriteLine("  Press any key to exit...");
 Console.ResetColor();
 Console.ReadKey(true);
+
+#if NETFRAMEWORK
+static class NetFrameworkCompat
+{
+    public static void Deconstruct<TKey, TValue>(this KeyValuePair<TKey, TValue> kvp, out TKey key, out TValue value)
+    {
+        key = kvp.Key;
+        value = kvp.Value;
+    }
+}
+#endif

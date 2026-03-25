@@ -1,8 +1,8 @@
 # Project Renamer Cloner
 
-A .NET global tool that **renames and clones entire projects** in a single step. It performs case-aware find-and-replace across file contents, file names, and directory names — automatically generating **12 naming convention variants** from a single PascalCase input. Designed for **ABP.io**, **ASP.NET Core**, **Angular**, **React Native**, **Blazor**, and any multi-project .NET solution.
+A .NET global tool and standalone executable that **renames and clones entire projects** in a single step. Supports **.NET 10 through .NET Framework 4.6.2**. It performs case-aware find-and-replace across file contents, file names, and directory names — automatically generating **12 naming convention variants** from a single PascalCase input. Designed for **ABP.io**, **ASP.NET Core**, **Angular**, **React Native**, **Blazor**, and any multi-project .NET solution.
 
-> 📖 **[Detailed Usage Guide](USAGE.md)** · 📋 **[Changelog](CHANGELOG.md)**
+> 📖 **[Detailed Usage Guide](https://github.com/winproxy/VSProjectRenamer/blob/main/USAGE.md)** · 📋 **[Changelog](https://github.com/winproxy/VSProjectRenamer/blob/main/CHANGELOG.md)**
 
 ## Features
 
@@ -226,9 +226,28 @@ Key2 NEW: sk_new_stripe_key
 
 ## Requirements
 
-- [.NET 10 SDK](https://dotnet.microsoft.com/download) or later
+### As a .NET Global Tool
+
+- [.NET 6 SDK](https://dotnet.microsoft.com/download) or later (supports .NET 6, 7, 8, 9, 10)
 - **Optional:** Node.js / Bun (for frontend package restore)
-- **Platform:** Windows (path separator logic uses `\`)
+
+### As a Standalone EXE
+
+- **.NET Framework 4.6.2, 4.7.2, or 4.8** — no SDK required, runs on any Windows machine with the corresponding .NET Framework installed
+- **.NET 6 – 10** — self-contained publish available, no runtime required
+
+### Supported Target Frameworks
+
+| Framework | Global Tool | Standalone EXE |
+|---|---|---|
+| .NET 10 | ✅ | ✅ |
+| .NET 9 | ✅ | ✅ |
+| .NET 8 | ✅ | ✅ |
+| .NET 7 | ✅ | ✅ |
+| .NET 6 | ✅ | ✅ |
+| .NET Framework 4.8 | — | ✅ |
+| .NET Framework 4.7.2 | — | ✅ |
+| .NET Framework 4.6.2 | — | ✅ |
 
 ---
 
@@ -236,14 +255,14 @@ Key2 NEW: sk_new_stripe_key
 
 | Document | Description |
 |----------|-------------|
-| [USAGE.md](USAGE.md) | Detailed installation & usage guide (NuGet tool, EXE, build from source, workflows, tips) |
-| [CHANGELOG.md](CHANGELOG.md) | Version history and release notes |
+| [USAGE.md](https://github.com/winproxy/VSProjectRenamer/blob/main/USAGE.md) | Detailed installation & usage guide (NuGet tool, EXE, build from source, workflows, tips) |
+| [CHANGELOG.md](https://github.com/winproxy/VSProjectRenamer/blob/main/CHANGELOG.md) | Version history and release notes |
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](https://github.com/winproxy/VSProjectRenamer/blob/main/LICENSE).
 
 ---
 

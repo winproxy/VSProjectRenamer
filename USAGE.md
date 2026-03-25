@@ -31,7 +31,7 @@ This document explains how to install and use **Project Renamer Cloner** as a **
 dotnet tool install -g ProjectRenamerCloner
 ```
 
-> Requires [.NET 10 SDK](https://dotnet.microsoft.com/download) or later.
+> Requires [.NET 6 SDK](https://dotnet.microsoft.com/download) or later. The tool supports .NET 6, 7, 8, 9, and 10.
 
 ### Update
 
@@ -67,6 +67,16 @@ dotnet publish -p:PublishProfile=singlefile
 
 This produces a self-contained `win-x64` executable in the `bin/Release/net10.0/win-x64/publish/` directory.
 
+> **Tip:** To build for a specific framework, use:
+> ```bash
+> dotnet publish -f net8.0 -r win-x64 --self-contained -p:PublishSingleFile=true
+> ```
+> For .NET Framework targets (`net48`, `net472`, `net462`), build with:
+> ```bash
+> dotnet build -f net48 -c Release
+> ```
+> The output EXE will be in `bin/Release/net48/`.
+
 ### Run
 
 1. Copy the published `.exe` into the root of the project you want to rename.
@@ -84,8 +94,8 @@ This produces a self-contained `win-x64` executable in the `bin/Release/net10.0/
 
 ```bash
 # Clone the repository
-git clone https://winproxy.visualstudio.com/ProjectRenamerCloner/_git/ProjectRenamerCloner
-cd ProjectRenamerCloner
+git clone https://github.com/winproxy/VSProjectRenamer.git
+cd VSProjectRenamer
 
 # Install as a global tool from local source
 dotnet pack

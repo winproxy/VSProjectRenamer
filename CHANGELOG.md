@@ -6,6 +6,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/) and this 
 
 ---
 
+## [3.0.0] — 2026-03-25
+
+### Added
+
+- **Multi-Target Framework Support** — the project now targets 8 frameworks:
+  - **.NET 10, 9, 8, 7, 6** — full support as a global tool and standalone executable
+  - **.NET Framework 4.8, 4.7.2, 4.6.2** — standalone executable only (global tool packaging is not supported for .NET Framework)
+- **Conditional Tool Packaging** — `PackAsTool` is automatically disabled for .NET Framework targets; NuGet package includes tool shims for .NET 6+ only.
+- **API Compatibility Polyfills** — all .NET 6+ APIs are polyfilled for .NET Framework:
+  - `Environment.ProcessPath` → `Process.GetCurrentProcess().MainModule.FileName`
+  - `Path.GetRelativePath` → `Uri.MakeRelativeUri`-based implementation
+  - `string.Replace(StringComparison)` → `Regex.Replace` fallback
+  - `KeyValuePair.Deconstruct` extension for tuple deconstruction
+  - Range/index operators (`s[1..]`, `s[^n..]`) → `Substring` calls
+- **Supported Frameworks Table** in README showing global tool vs. standalone EXE availability per TFM.
+
+### Changed
+
+- **Version** bumped from 2.1.0 to 3.0.0 (major platform expansion).
+- **`<LangVersion>`** set to `latest` to enable modern C# syntax across all targets.
+- **Package URLs** migrated from Azure DevOps to GitHub (`https://github.com/winproxy/VSProjectRenamer`).
+- **README / USAGE / CHANGELOG links** converted to absolute GitHub URLs so they work correctly on nuget.org.
+- **Requirements section** in README updated to document per-framework requirements and a supported frameworks table.
+- **USAGE.md** updated with multi-framework build instructions and corrected clone URL.
+- **Package description** updated to mention multi-framework support.
+
+### Dependencies
+
+- Added `Microsoft.NETFramework.ReferenceAssemblies` 1.0.3 (for .NET Framework targets, `PrivateAssets=All`).
+- Added `System.ValueTuple` 4.5.0 (for .NET Framework 4.6.2 only).
+
+---
+
 ## [2.1.0] — 2026-03-11
 
 ### Added
